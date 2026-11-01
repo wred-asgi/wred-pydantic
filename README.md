@@ -1,7 +1,8 @@
 # wred-pydantic
 
-Explicit Pydantic v2 input validation and response conversion for Wred 0.13–0.14.
-Python 3.11+. No dependency injection or annotation inference.
+Pydantic v2 input validation, response conversion, and automatic OpenAPI 3.1.1
+documentation with Swagger UI for Wred 0.13–0.14. Python 3.11+.
+No dependency injection or annotation inference.
 
 ```sh
 pip install .
@@ -10,7 +11,7 @@ pip install .
 ```python
 from pydantic import BaseModel, Field
 from wred import App
-from wred_pydantic import body, query, path, response
+from wred_pydantic import OpenAPI, body, query, path, response
 
 
 class Product(BaseModel):
@@ -25,7 +26,13 @@ app = App()
 @response(Product, status=201)
 async def create(request, body):
     return body, [("content-type", "application/json")], 201
+
+
+OpenAPI(app, title="Products API", version="1.0.0").mount()
 ```
+
+Open `/docs` for interactive Swagger UI or `/openapi.json` for the generated
+document.
 
 - `body(Model, argument='body', max_bytes=1048576)` validates raw JSON bytes and
   injects a keyword argument. Bodies over the limit return 413. Set `max_bytes=None`
@@ -51,8 +58,55 @@ metadata `status` value.
 Use `@app.route` outermost, then input decorators, then response conversion.
 Place exception mapping outside response conversion to handle response validation
 failures. Injected argument names cannot collide with
-route parameters. Schema metadata is consumed by `wred-openapi` without a dependency
-on that package. Do not register duplicate metadata for the same input source.
+route parameters. Do not register duplicate metadata for the same input source.
+
+## OpenAPI and Swagger UI
+
+`OpenAPI(app, title='Wred API', version='1.0.0', security_schemes=None)` reads Wred's
+current fixed and dynamic routes. `body`, `query`, `path`, and `response` decorators
+provide request and response schemas, constraints, required fields, and aliases
+automatically. Nested, recursive, and discriminated model references become reusable
+schema components. Input validation adds a 422 response; limited bodies also add
+413. Routes without model metadata get string path parameters and a generic 200
+response. Handler annotations are not inspected.
+
+Call `.mount(schema_path='/openapi.json', swagger_path='/docs',
+assets_path='/_openapi')` once to register the schema, UI, and asset endpoints.
+Paths are configurable and existing routes are never overwritten. Set
+`swagger_path=None` to serve only the schema. Documentation routes are public and
+excluded from the generated document. Routes registered after mounting are included
+automatically. `.document()` returns a fresh dictionary for exporting the schema
+without mounting any endpoints.
+
+Swagger UI 5.17.14 JavaScript and CSS are bundled locally under
+`wred_pydantic/assets` with their Apache-2.0 license. The UI needs no CDN or external
+validator. ASGI `root_path` is applied to schema, asset, and API server URLs so that
+interactive requests work behind a mounted URL prefix. The page uses an inline
+initialization script; deployments with a restrictive CSP can serve just the schema
+and provide their own UI.
+
+Use `operation` for optional summaries, descriptions, tags, operation IDs, additional
+responses, parameters, or security requirements:
+
+```python
+from wred_pydantic import operation
+
+
+@app.route("/products/{product_id}")
+@operation(summary="Read a product", tags=["products"])
+@response(Product)
+async def read(request, product_id):
+    return {"name": "Book"}
+```
+
+`operation(responses={404: {'description': 'Product not found'}})` adds explicit
+OpenAPI response objects; response values can also be Pydantic-compatible types.
+Security requirements use standard OpenAPI objects, with schemes configured through
+`OpenAPI(..., security_schemes=...)`. Conflicting metadata, parameters, duplicate
+explicit operation IDs, and missing security schemes raise `ValueError`.
+
+Metadata supplied by other Wred extensions is also consumed through the shared
+`handler.__wred_openapi__` convention.
 
 Run `pip install -e '.[test]'` and `pytest` inside this repository.
 

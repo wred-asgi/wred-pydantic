@@ -1,9 +1,13 @@
-"""Explicit Pydantic v2 validation and serialization for Wred."""
+"""Pydantic v2 validation, serialization, and OpenAPI documentation for Wred."""
 
 from contextvars import ContextVar
 from functools import wraps
 
 from pydantic import TypeAdapter, ValidationError
+
+from .openapi import OpenAPI, operation
+
+__all__ = ["OpenAPI", "body", "operation", "path", "query", "response"]
 
 __version__ = "0.1.0"
 
@@ -113,6 +117,8 @@ def _validate(model, source, argument, max_bytes=None):
                 _route_context.reset(token)
 
         _metadata(wrapped, **{source: adapter.json_schema()})
+        if source == "body":
+            wrapped.__wred_pydantic_body_limit__ = max_bytes
         return wrapped
 
     return decorate
