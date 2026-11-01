@@ -1,6 +1,5 @@
 """Pydantic v2 validation, serialization, and OpenAPI documentation for Wred."""
 
-from contextvars import ContextVar
 from functools import wraps
 
 from pydantic import TypeAdapter, ValidationError
@@ -10,9 +9,6 @@ from .openapi import OpenAPI, operation
 __all__ = ["OpenAPI", "body", "operation", "path", "query", "response"]
 
 __version__ = "0.2.0"
-
-# Task-local: nested input decorators share only the original route arguments.
-_route_context = ContextVar("wred_pydantic_route", default=None)
 
 
 class _BodyTooLarge(Exception):
@@ -73,10 +69,7 @@ def _validate(model, source, argument, max_bytes=None):
                 raise TypeError(
                     f"Validated argument conflicts with path parameter: {argument}"
                 )
-            context = _route_context.get()
-            route_kwargs = (
-                context[1] if context is not None and context[0] is request else kwargs
-            )
+            route_kwargs = request.scope.get("wred.extensions.route_kwargs", kwargs)
             try:
                 if source == "body":
                     value = adapter.validate_json(await _read_body(request, max_bytes))
@@ -110,11 +103,14 @@ def _validate(model, source, argument, max_bytes=None):
                     [("content-type", "application/json")],
                     422,
                 )
-            token = _route_context.set((request, route_kwargs))
+            owns_context = "wred.extensions.route_kwargs" not in request.scope
+            if owns_context:
+                request.scope["wred.extensions.route_kwargs"] = dict(route_kwargs)
             try:
                 return await handler(request, *args, **kwargs, **{argument: value})
             finally:
-                _route_context.reset(token)
+                if owns_context:
+                    del request.scope["wred.extensions.route_kwargs"]
 
         _metadata(wrapped, **{source: adapter.json_schema()})
         if source == "body":

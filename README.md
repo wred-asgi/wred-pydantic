@@ -130,3 +130,12 @@ package to compare plain Wred with request and response validation for 1, 100,
 and 10,000 items. It reports in-process ASGI latency, excluding networking and
 application I/O. Measure throughput, memory, and tail latency under your expected
 concurrency before sizing a production deployment.
+
+## Extension compatibility
+
+Follows the [Wred extension contract v1](https://github.com/wred-asgi/.github/blob/main/EXTENSIONS.md).
+Keep `@app.route` outermost for
+route decorators; register routes on the inner Wred app when using ASGI wrappers.
+
+Input decorators share original route kwargs with pagination, so their injected
+values do not enter path validation. Use distinct `argument=` names.
