@@ -9,7 +9,7 @@ from .openapi import OpenAPI, operation
 
 __all__ = ["OpenAPI", "body", "operation", "path", "query", "response"]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Task-local: nested input decorators share only the original route arguments.
 _route_context = ContextVar("wred_pydantic_route", default=None)
