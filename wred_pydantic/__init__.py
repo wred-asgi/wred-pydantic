@@ -8,7 +8,7 @@ from .openapi import OpenAPI, operation
 
 __all__ = ["OpenAPI", "body", "operation", "path", "query", "response"]
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 class _BodyTooLarge(Exception):
@@ -59,7 +59,11 @@ def _metadata(handler, **entries):
 
 def _validate(model, source, argument, max_bytes=None):
     adapter = TypeAdapter(model)
-    if not argument or not argument.isidentifier() or argument == "request":
+    if (
+        not isinstance(argument, str)
+        or not argument.isidentifier()
+        or argument == "request"
+    ):
         raise ValueError("Use a named argument other than request")
 
     def decorate(handler):

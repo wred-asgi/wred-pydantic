@@ -296,6 +296,12 @@ class OpenAPI:
             for name in ("swagger-ui.css", "swagger-ui-bundle.js"):
 
                 def asset_handler(filename):
+                    # Read once during configuration, never block the event loop
+                    # on filesystem reads for each documentation request.
+                    content = (
+                        files("wred_pydantic").joinpath("assets", filename).read_bytes()
+                    )
+
                     async def serve(request):
                         mime = (
                             "text/css"
@@ -303,9 +309,7 @@ class OpenAPI:
                             else "text/javascript"
                         )
                         return (
-                            files("wred_pydantic")
-                            .joinpath("assets", filename)
-                            .read_bytes(),
+                            content,
                             [("content-type", mime)],
                             200,
                         )

@@ -1,7 +1,7 @@
 # wred-pydantic
 
 Pydantic v2 input validation, response conversion, and automatic OpenAPI 3.1.1
-documentation with Swagger UI for Wred 0.13–0.14. Python 3.11+.
+documentation with Swagger UI for Wred 0.13–0.15. Python 3.11+.
 No dependency injection or annotation inference.
 
 ```sh
@@ -78,7 +78,7 @@ excluded from the generated document. Routes registered after mounting are inclu
 automatically. `.document()` returns a fresh dictionary for exporting the schema
 without mounting any endpoints.
 
-Swagger UI 5.17.14 JavaScript and CSS are bundled locally under
+Swagger UI 5.34.1 JavaScript and CSS are bundled locally under
 `wred_pydantic/assets` with their Apache-2.0 license. The UI needs no CDN or external
 validator. ASGI `root_path` is applied to schema, asset, and API server URLs so that
 interactive requests work behind a mounted URL prefix. The page uses an inline
@@ -124,7 +124,7 @@ on that worker. The body limit is not a CPU or response-size limit. Model instan
 follow Pydantic's revalidation policy; use `revalidate_instances='always'` if your
 application returns models that may have been mutated after construction.
 
-Run `tox` for the Python 3.12 compatibility matrix (Wred 0.13/0.14 and Pydantic
+Run `tox` for the Python 3.11/3.14 compatibility matrix (Wred 0.13/0.14/0.15 and Pydantic
 2.8.0/latest 2.x). Run `python benchmarks/validation.py` after installing this
 package to compare plain Wred with request and response validation for 1, 100,
 and 10,000 items. It reports in-process ASGI latency, excluding networking and
@@ -133,9 +133,15 @@ concurrency before sizing a production deployment.
 
 ## Extension compatibility
 
-Follows the [Wred extension contract v1](https://github.com/wred-asgi/.github/blob/main/EXTENSIONS.md).
+Follows the [Wred extension contract v1.1](https://github.com/wred-asgi/.github/blob/main/EXTENSIONS.md).
 Keep `@app.route` outermost for
 route decorators; register routes on the inner Wred app when using ASGI wrappers.
 
 Input decorators share original route kwargs with pagination, so their injected
 values do not enter path validation. Use distinct `argument=` names.
+
+Bundled assets are loaded once at mount time, avoiding filesystem reads on requests.
+`wred_pydantic/assets/manifest.json` records the upstream archive integrity and file
+SHA-256 digests. Run `python scripts/update_swagger.py` to reproduce the pinned
+release; review upstream security changes before changing its version and digest.
+Python dependency auditing does not inspect JavaScript bundled inside Swagger UI.
